@@ -14,9 +14,9 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "AI Smart Camera",
+  title: "SmartCam AI",
   description:
-    "An intelligent camera system powered by AI for enhanced security and monitoring",
+    "An AI-powered smart webcam application that detects specific objects in real-time",
 };
 
 export default function RootLayout({
