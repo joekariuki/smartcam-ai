@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+require("@tensorflow/tfjs-backend-cpu");
+require("@tensorflow/tfjs-backend-webgl");
+const cocoSsd = require("@tensorflow-models/coco-ssd");
 
 const CamViewer = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [disabled, setDisabled] = useState(true);
+  const [model, setModel] = useState<any | undefined>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const liveViewRef = useRef<HTMLDivElement>(null);
@@ -12,7 +16,6 @@ const CamViewer = () => {
   const enableWebcamButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    let model = undefined;
     const getUserMediaSupport = () => {
       return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
     };
@@ -28,8 +31,11 @@ const CamViewer = () => {
       alert("This browser is not support for webcam functionality");
     }
 
-    // Remove the 'invisible' class from the demos section
-    demosSectionRef.current?.classList.remove("invisible");
+    cocoSsd.load().then(function (loadedModel: any) {
+      setModel(loadedModel);
+      // Show demo section now model is ready to use.
+      demosSectionRef.current?.classList.remove("invisible");
+    });
   }, []);
 
   const enableCam = (event: React.MouseEvent<HTMLButtonElement>) => {
