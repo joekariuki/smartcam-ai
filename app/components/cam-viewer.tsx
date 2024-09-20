@@ -1,123 +1,82 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-require("@tensorflow/tfjs-backend-cpu");
-require("@tensorflow/tfjs-backend-webgl");
-const cocoSsd = require("@tensorflow-models/coco-ssd");
+import * as tf from "@tensorflow/tfjs";
+import "@tensorflow/tfjs-backend-webgl";
+import "@tensorflow/tfjs-backend-cpu";
+import * as cocoSsd from "@tensorflow-models/coco-ssd";
 
 const CamViewer = () => {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [disabled, setDisabled] = useState(true);
-  const [model, setModel] = useState<any | undefined>(null);
+  const [model, setModel] = useState<cocoSsd.ObjectDetection | null>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
-
+  const [predictions, setPredictions] = useState<cocoSsd.DetectedObject[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const liveViewRef = useRef<HTMLDivElement>(null);
-  const demosSectionRef = useRef<HTMLDivElement>(null);
+  const demosSectionRef = useRef<HTMLElement>(null);
   const enableWebcamButtonRef = useRef<HTMLButtonElement>(null);
+  const liveViewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const getUserMediaSupport = () => {
-      return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    const initializeTensorFlow = async () => {
+      await tf.ready();
+      if (tf.getBackend() !== "webgl") {
+        try {
+          await tf.setBackend("webgl");
+          console.log("WebGL backend initialized");
+        } catch (error) {
+          console.error("Failed to set WebGL backend:", error);
+          console.log("Falling back to CPU backend");
+          await tf.setBackend("cpu");
+        }
+      }
+      console.log("Current backend:", tf.getBackend());
     };
 
-    // If webcam supported, add event listener to button for when user
-    // wants to activate it to call enableCam
-    if (getUserMediaSupport()) {
-      // enableWebcamButton.addEventListener("click", enableCam);
-      setDisabled(false);
-      setIsLoaded(true);
-    } else {
-      console.warn("getUserMedia() is not supported by your browser");
-      alert("This browser is not support for webcam functionality");
-    }
-
-    cocoSsd.load().then(function (loadedModel: any) {
+    const loadModel = async () => {
+      await initializeTensorFlow();
+      const loadedModel = await cocoSsd.load();
       setModel(loadedModel);
       setModelLoaded(true);
-      // Show demo section now model is ready to use.
+      setIsLoaded(true);
+      console.log("Model loaded");
       demosSectionRef.current?.classList.remove("invisible");
-    });
+    };
+
+    loadModel();
   }, []);
 
-  const enableCam = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const enableCam = async () => {
     if (!modelLoaded) {
       console.warn("Model not loaded yet. Please wait.");
       return;
     }
 
-    const model = true;
-
-    if (!model) {
-      return;
-    }
-
-    // Hide button clicked once clicked
     if (enableWebcamButtonRef.current) {
       enableWebcamButtonRef.current.classList.add("removed");
     }
 
-    // getUsermedia parameters to force video but not audio
-    const constraints = {
-      video: true,
-    };
-
-    // Activate the webcam stream
-    navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.addEventListener("loadeddata", predictWebcam);
       }
-    });
+    } catch (error) {
+      console.error("Error accessing webcam:", error);
+    }
   };
 
-  const predictWebcam = () => {
+  const predictWebcam = async () => {
     if (!model || !videoRef.current) {
       console.warn("Model or video not ready. Retrying...");
-      window.requestAnimationFrame(predictWebcam);
+      requestAnimationFrame(predictWebcam);
       return;
     }
 
-    let children: HTMLElement[] = [];
+    const predictions = await model.detect(videoRef.current);
+    setPredictions(predictions);
 
-    model.detect(videoRef.current).then((predictions: any) => {
-      // Remove highlight done by previous predictions
-      for (let i = 0; i < children.length; i++) {
-        liveViewRef.current?.removeChild(children[i]);
-      }
-
-      children.splice(0);
-
-      // Loop through predictions and draw to live view if condifidence score is above 0.6
-      for (let n = 0; n < predictions.length; n++) {
-        if (predictions[n].score > 0.66) {
-          const p = document.createElement("p");
-          p.innerText = `${predictions[n].class} - width ${Math.round(
-            parseFloat(predictions[n].score) * 100
-          )}% confidence.`;
-          p.style.marginLeft = `${predictions[n].bbox[0]}px`;
-          p.style.marginTop = `${predictions[n].bbox[1] - 10}px`;
-          p.style.width = `${predictions[n].bbox[2] - 10}px`;
-          p.style.top = "0";
-          p.style.left = "0";
-
-          const highlighter = document.createElement("div");
-          highlighter.setAttribute("class", "highlighter");
-          highlighter.style.left = `${predictions[n].bbox[0]}px`;
-          highlighter.style.top = `${predictions[n].bbox[1]}px`;
-          highlighter.style.width = `${predictions[n].bbox[2]}px`;
-          highlighter.style.height = `${predictions[n].bbox[3]}px`;
-
-          liveViewRef.current?.appendChild(highlighter);
-          liveViewRef.current?.appendChild(p);
-          children.push(highlighter);
-          children.push(p);
-        }
-      }
-
-      // Call predictWebcam again on next animation frame
-      window.requestAnimationFrame(predictWebcam);
-    });
+    requestAnimationFrame(predictWebcam);
   };
 
   return (
@@ -125,7 +84,7 @@ const CamViewer = () => {
       id="demos"
       ref={demosSectionRef}
       className={`${
-        isLoaded ? "opacity-100" : "opacity-40"
+        modelLoaded ? "opacity-100" : "opacity-40"
       } text-center max-w-5xl mx-auto my-12 space-y-4 transition-opacity ease-in-out`}
     >
       <p>
@@ -134,13 +93,13 @@ const CamViewer = () => {
         to the webcam when the browser asks (check the top left of your window)
       </p>
 
-      <div id="liveView" className="camView" ref={liveViewRef}>
+      <div id="liveView" className="camView relative" ref={liveViewRef}>
         <button
           id="webcamButton"
           ref={enableWebcamButtonRef}
           className="bg-blue-500 text-white p-2"
           onClick={enableCam}
-          disabled={disabled}
+          disabled={!isLoaded}
         >
           Enable Webcam
         </button>
@@ -154,6 +113,31 @@ const CamViewer = () => {
             height="480"
           />
         )}
+        {predictions.map((prediction, index) => (
+          <div key={index}>
+            <p
+              style={{
+                marginLeft: prediction.bbox[0],
+                marginTop: prediction.bbox[1] - 10,
+                width: prediction.bbox[2] - 10,
+                top: 0,
+                left: 0,
+              }}
+              className="absolute text-white text-sm font-bold bg-black bg-opacity-50 p-1"
+            >
+              {prediction.class} - {Math.round(prediction.score * 100)}%
+            </p>
+            <div
+              className="absolute border-2 border-green-400 bg-green-400 bg-opacity-25"
+              style={{
+                left: prediction.bbox[0],
+                top: prediction.bbox[1],
+                width: prediction.bbox[2],
+                height: prediction.bbox[3],
+              }}
+            />
+          </div>
+        ))}
       </div>
     </section>
   );
