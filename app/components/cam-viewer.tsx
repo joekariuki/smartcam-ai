@@ -9,6 +9,7 @@ const CamViewer = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [disabled, setDisabled] = useState(true);
   const [model, setModel] = useState<any | undefined>(null);
+  const [modelLoaded, setModelLoaded] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const liveViewRef = useRef<HTMLDivElement>(null);
@@ -33,12 +34,18 @@ const CamViewer = () => {
 
     cocoSsd.load().then(function (loadedModel: any) {
       setModel(loadedModel);
+      setModelLoaded(true);
       // Show demo section now model is ready to use.
       demosSectionRef.current?.classList.remove("invisible");
     });
   }, []);
 
   const enableCam = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (!modelLoaded) {
+      console.warn("Model not loaded yet. Please wait.");
+      return;
+    }
+
     const model = true;
 
     if (!model) {
@@ -65,7 +72,52 @@ const CamViewer = () => {
   };
 
   const predictWebcam = () => {
-    console.log("Predicting webcam data...");
+    if (!model || !videoRef.current) {
+      console.warn("Model or video not ready. Retrying...");
+      window.requestAnimationFrame(predictWebcam);
+      return;
+    }
+
+    let children: HTMLElement[] = [];
+
+    model.detect(videoRef.current).then((predictions: any) => {
+      // Remove highlight done by previous predictions
+      for (let i = 0; i < children.length; i++) {
+        liveViewRef.current?.removeChild(children[i]);
+      }
+
+      children.splice(0);
+
+      // Loop through predictions and draw to live view if condifidence score is above 0.6
+      for (let n = 0; n < predictions.length; n++) {
+        if (predictions[n].score > 0.66) {
+          const p = document.createElement("p");
+          p.innerText = `${predictions[n].class} - width ${Math.round(
+            parseFloat(predictions[n].score) * 100
+          )}% confidence.`;
+          p.style.marginLeft = `${predictions[n].bbox[0]}px`;
+          p.style.marginTop = `${predictions[n].bbox[1] - 10}px`;
+          p.style.width = `${predictions[n].bbox[2] - 10}px`;
+          p.style.top = "0";
+          p.style.left = "0";
+
+          const highlighter = document.createElement("div");
+          highlighter.setAttribute("class", "highlighter");
+          highlighter.style.left = `${predictions[n].bbox[0]}px`;
+          highlighter.style.top = `${predictions[n].bbox[1]}px`;
+          highlighter.style.width = `${predictions[n].bbox[2]}px`;
+          highlighter.style.height = `${predictions[n].bbox[3]}px`;
+
+          liveViewRef.current?.appendChild(highlighter);
+          liveViewRef.current?.appendChild(p);
+          children.push(highlighter);
+          children.push(p);
+        }
+      }
+
+      // Call predictWebcam again on next animation frame
+      window.requestAnimationFrame(predictWebcam);
+    });
   };
 
   return (
