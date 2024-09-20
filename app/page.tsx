@@ -1,4 +1,4 @@
-import CamViewer from "./components/cam-viewer";
+import CamViewer from "@/components/cam-viewer";
 
 export default function Home() {
   return (
