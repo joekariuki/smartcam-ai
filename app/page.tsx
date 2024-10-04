@@ -1,3 +1,4 @@
+import DetectableObjects from "@/components/detectable-objects";
 import Features from "@/components/features";
 import Hero from "@/components/hero";
 import HowItWorks from "@/components/how-it-works";
@@ -15,6 +16,7 @@ export default function Home() {
         <ModelInfo />
         <UseCases />
         <KeyMetrics />
+        <DetectableObjects />
       </main>
     </div>
   );
