@@ -1,4 +1,5 @@
 import DetectableObjects from "@/components/detectable-objects";
+import DevbrewCTA from "@/components/devbrew-cta";
 import Features from "@/components/features";
 import Hero from "@/components/hero";
 import HowItWorks from "@/components/how-it-works";
@@ -17,6 +18,7 @@ export default function Home() {
         <UseCases />
         <KeyMetrics />
         <DetectableObjects />
+        <DevbrewCTA />
       </main>
     </div>
   );
