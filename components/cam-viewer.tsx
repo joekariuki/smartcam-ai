@@ -5,6 +5,7 @@ import { useModelLoader } from "@/lib/hooks/use-model-loader";
 import { useWebcam } from "@/lib/hooks/use-webcam";
 import { PredictionOverlay } from "@/components/prediction-overlay";
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
+import { Button } from "@/components/ui/button";
 
 const CamViewer: React.FC = () => {
   const { model, isLoaded } = useModelLoader();
@@ -48,13 +49,13 @@ const CamViewer: React.FC = () => {
 
         <div id="liveView" className="camView relative" ref={liveViewRef}>
           {!isWebcamEnabled && (
-            <button
-              className="bg-blue-500 text-white p-2 mb-4"
+            <Button
+              variant="default"
               onClick={handleEnableWebcam}
               disabled={!isLoaded}
             >
               Enable Webcam
-            </button>
+            </Button>
           )}
           {isLoaded && (
             <div
