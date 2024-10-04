@@ -1,6 +1,7 @@
 import Features from "@/components/features";
 import Hero from "@/components/hero";
 import HowItWorks from "@/components/how-it-works";
+import ModelInfo from "@/components/model-info";
 
 export default function Home() {
   return (
@@ -9,6 +10,7 @@ export default function Home() {
         <Hero />
         <Features />
         <HowItWorks />
+        <ModelInfo />
       </main>
     </div>
   );
